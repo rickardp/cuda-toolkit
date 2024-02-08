@@ -33,6 +33,11 @@ export async function download(
       // Tool is already in cache
       core.debug(`Found in local machine cache ${toolPath}`)
       executableDirectory = toolPath
+      try {
+        return getExecutablePath(executableDirectory);
+      } catch (e : any) {
+        core.warn(`Not able to use local cache: ${e.message ?? e}`)
+      }
     } else {
       core.debug(`Not found in local cache`)
     }
@@ -43,14 +48,18 @@ export async function download(
       [cacheDirectory],
       cacheKey
     )
-    if (cacheResult !== undefined) {
+    if (cacheResult !== undefined && cacheDirectory) {
       core.debug(`Found in GitHub cache ${cacheDirectory}`)
       executableDirectory = cacheDirectory
+      try {
+        return getExecutablePath(executableDirectory);
+      } catch (e : any) {
+        core.warn(`Not able to use GitHub cache: ${e.message ?? e}`)
+      }
     } else {
       core.debug(`Not found in GitHub cache`)
     }
   }
-  if (executableDirectory === undefined) {
     // Final option, download tool from NVIDIA servers
     core.debug(`Not found in local/GitHub cache, downloading...`)
     // Get download URL
@@ -94,11 +103,18 @@ export async function download(
         core.debug(`Did not cache, cache possibly already exists`)
       }
       core.debug(`Tool was moved to cache directory ${cacheDirectory}`)
-      executableDirectory = cacheDirectory
+      try {
+        return getExecutablePath(cacheDirectory);
+      } catch (e : any) {
+        core.warn(`Not able to use created GitHub cache: ${e.message ?? e}`)
+      }
     }
     executableDirectory = downloadDirectory
-  }
   core.debug(`Executable path ${executableDirectory}`)
+  return getExecutablePath(getExecutablePath);
+}
+
+function getExecutablePath(executableDirectory: string) {
   // String with full executable path
   let fullExecutablePath: string
   // Get list of files in tool cache
@@ -110,9 +126,9 @@ export async function download(
     core.debug(f)
   }
   if (filesInCache.length > 1) {
-    throw new Error(`Got multiple file in tool cache: ${filesInCache.length}`)
+    throw new Error(`Got multiple file in tool directory ${executableDirectory}: ${filesInCache.length}`)
   } else if (filesInCache.length === 0) {
-    throw new Error(`Got no files in tool cahce`)
+    throw new Error(`Got no files in tool directory ${executableDirectory}`)
   } else {
     fullExecutablePath = filesInCache[0]
   }
